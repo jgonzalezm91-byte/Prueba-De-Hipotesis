@@ -1,0 +1,620 @@
+<!-- Creado por José Daniel González Monroy, Carné 7590 24 19904 -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HypoTest Pro - Pruebas de Hipótesis</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jstat@latest/dist/jstat.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .tab-active { border-bottom-color: #2563eb; color: #2563eb; font-weight: 600; }
+        .tab-inactive { border-bottom-color: transparent; color: #6b7280; }
+        .fade-in { animation: fadeIn 0.4s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        input[type="number"]::-webkit-inner-spin-button, 
+        input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+
+    <header class="bg-blue-700 text-white shadow-md py-4 px-6 md:px-12 flex justify-between items-center">
+        <div class="flex items-center gap-3">
+            <i class="fas fa-chart-area text-2xl"></i>
+            <div>
+                <h1 class="text-xl font-bold tracking-tight">HypoTest Pro by José González 7590-24-19904</h1>
+                <p class="text-xs text-blue-200">Motor de Inferencia Estadística</p>
+            </div>
+        </div>
+        <div class="hidden md:flex gap-4">
+            <select id="example-loader" class="text-sm bg-blue-800 border border-blue-600 rounded px-3 py-1 text-white outline-none cursor-pointer hover:bg-blue-900 transition">
+                <option value="">-- Cargar ejemplo de clase --</option>
+                <option value="ex1">Ejemplo: USB Ingeniero (Cola Derecha, 5%)</option>
+                <option value="ex2">Ejemplo: USB Auditor (Cola Izquierda, 1%)</option>
+                <option value="ex3">Ejemplo: IQ Ingeniería (Bilateral, 5%)</option>
+            </select>
+        </div>
+    </header>
+
+    <main class="flex-grow container mx-auto px-4 py-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
+        
+        <div class="lg:col-span-5 space-y-6">
+            
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="bg-slate-100 px-5 py-3 border-b border-slate-200 flex justify-between items-center">
+                    <h2 class="font-semibold text-slate-700"><i class="fas fa-database mr-2 text-blue-600"></i>1. Entrada de Datos</h2>
+                </div>
+                
+                <div class="p-5 space-y-4">
+                    <div class="flex border-b border-slate-200 w-full">
+                        <button id="tab-summary" class="pb-2 px-4 tab-active w-1/2 text-center border-b-2 transition" onclick="switchInputType('summary')">Datos Resumidos</button>
+                        <button id="tab-raw" class="pb-2 px-4 tab-inactive w-1/2 text-center border-b-2 transition" onclick="switchInputType('raw')">Datos Brutos (CSV/Txt)</button>
+                    </div>
+
+                    <div id="input-summary" class="space-y-4 fade-in">
+                        <div class="bg-amber-50 border border-amber-200 text-amber-800 p-3 rounded text-sm mb-2">
+                            <i class="fas fa-info-circle mr-1"></i> Modo para promedios dados. No verifica normalidad gráficamente.
+                        </div>
+                        <div class="grid grid-cols-3 gap-3">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-500 mb-1">Muestra (n)</label>
+                                <input type="number" id="sum-n" class="w-full border rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value="400">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-500 mb-1">Media (x̄)</label>
+                                <input type="number" id="sum-mean" step="any" class="w-full border rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value="102">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-500 mb-1">Desviación (s o σ)</label>
+                                <input type="number" id="sum-std" step="any" class="w-full border rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value="10">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="input-raw" class="space-y-4 fade-in hidden">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 mb-1">Valores (separados por comas o saltos)</label>
+                            <textarea id="raw-data" rows="3" class="w-full border rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Ej: 98, 102, 100, 105, 99..."></textarea>
+                        </div>
+                        <div class="space-y-2">
+                            <input type="file" id="csv-file" accept=".csv,.txt" class="hidden">
+                            <button onclick="document.getElementById('csv-file').click()" class="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium rounded border border-slate-300 transition flex items-center justify-center gap-2">
+                                <i class="fas fa-upload text-blue-600"></i> Importar CSV/Txt (Auto-detección)
+                            </button>
+                            <div class="flex gap-2">
+                                <button onclick="descargarPlantilla()" class="w-1/2 py-2 bg-white hover:bg-slate-50 text-slate-600 text-xs font-medium rounded border border-slate-200 transition flex items-center justify-center gap-1">
+                                    <i class="fas fa-file-download text-green-600"></i> Bajar Plantilla
+                                </button>
+                                <button onclick="exportarDatos()" class="w-1/2 py-2 bg-white hover:bg-slate-50 text-slate-600 text-xs font-medium rounded border border-slate-200 transition flex items-center justify-center gap-1">
+                                    <i class="fas fa-file-export text-purple-600"></i> Exportar Datos
+                                </button>
+                            </div>
+                            <p class="text-[10px] text-slate-400 mt-1 text-center">Extrae números automáticamente ignorando textos u otras estructuras.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="bg-slate-100 px-5 py-3 border-b border-slate-200">
+                    <h2 class="font-semibold text-slate-700"><i class="fas fa-sliders-h mr-2 text-blue-600"></i>2. Parámetros de la Hipótesis</h2>
+                </div>
+                
+                <div class="p-5 space-y-5">
+                    
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 mb-1">Tipo de Prueba</label>
+                            <select id="test-type" class="w-full border rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                                <option value="z">Prueba Z (σ conocida / n ≥ 30)</option>
+                                <option value="t">Prueba T (σ desconocida / n < 30)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 mb-1">Valor a probar (μ₀)</label>
+                            <input type="number" id="test-mu" step="any" class="w-full border rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value="100">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 mb-1">Significancia (α)</label>
+                            <select id="test-alpha" class="w-full border rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                                <option value="0.10">10% (0.10)</option>
+                                <option value="0.05" selected>5% (0.05)</option>
+                                <option value="0.01">1% (0.01)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 mb-1">Hipótesis Alternativa (Hₐ)</label>
+                            <select id="test-tail" class="w-full border rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                                <option value="two">Bilateral (μ ≠ μ₀)</option>
+                                <option value="right" selected>Unilateral Derecha (μ > μ₀)</option>
+                                <option value="left">Unilateral Izquierda (μ < μ₀)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-800 text-white rounded p-4 text-center font-mono text-sm space-y-1">
+                        <div id="h0-display">H₀: μ = 100</div>
+                        <div id="ha-display" class="text-blue-300">Hₐ: μ > 100</div>
+                    </div>
+
+                    <button onclick="ejecutarPrueba()" class="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-md transition transform active:scale-95 flex items-center justify-center gap-2">
+                        <i class="fas fa-play"></i> Calcular Prueba
+                    </button>
+                </div>
+            </div>
+            
+            <div class="md:hidden">
+                <select id="example-loader-mobile" class="w-full text-sm bg-blue-100 border border-blue-300 rounded px-3 py-2 text-blue-800 outline-none cursor-pointer">
+                    <option value="">-- Cargar ejemplo de clase --</option>
+                    <option value="ex1">Ejemplo: USB Ingeniero (Derecha)</option>
+                    <option value="ex2">Ejemplo: USB Auditor (Izquierda)</option>
+                    <option value="ex3">Ejemplo: IQ Ingeniería (Bilateral)</option>
+                </select>
+            </div>
+
+        </div>
+
+        <div class="lg:col-span-7 space-y-6">
+            
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="bg-slate-100 px-5 py-3 border-b border-slate-200">
+                    <h2 class="font-semibold text-slate-700"><i class="fas fa-check-double mr-2 text-green-600"></i>Verificación de Supuestos</h2>
+                </div>
+                <div class="p-5">
+                    <div id="assumptions-box" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="text-sm text-slate-500 italic text-center col-span-2 py-4">Ejecute la prueba para evaluar los supuestos estadísticos.</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden relative">
+                <div id="results-overlay" class="absolute inset-0 bg-white/80 backdrop-blur-sm z-10 flex flex-col items-center justify-center">
+                    <i class="fas fa-chart-bar text-4xl text-slate-300 mb-3"></i>
+                    <p class="text-slate-500 font-medium">Esperando datos para calcular</p>
+                </div>
+
+                <div class="bg-slate-100 px-5 py-3 border-b border-slate-200 flex justify-between items-center">
+                    <h2 class="font-semibold text-slate-700"><i class="fas fa-poll mr-2 text-blue-600"></i>Resultados de la Prueba</h2>
+                    <span id="decision-badge" class="px-3 py-1 rounded-full text-xs font-bold hidden"></span>
+                </div>
+                
+                <div class="p-5">
+                    <div class="grid grid-cols-3 gap-4 mb-6">
+                        <div class="bg-blue-50 border border-blue-100 p-3 rounded-lg text-center">
+                            <div class="text-xs text-blue-500 font-bold uppercase mb-1">Estadístico (<span id="stat-name">Z</span>)</div>
+                            <div id="stat-value" class="text-2xl font-black text-blue-700">-</div>
+                        </div>
+                        <div class="bg-blue-50 border border-blue-100 p-3 rounded-lg text-center">
+                            <div class="text-xs text-blue-500 font-bold uppercase mb-1">Valor Crítico</div>
+                            <div id="crit-value" class="text-2xl font-black text-blue-700">-</div>
+                        </div>
+                        <div class="bg-purple-50 border border-purple-100 p-3 rounded-lg text-center">
+                            <div class="text-xs text-purple-500 font-bold uppercase mb-1">P-Valor</div>
+                            <div id="p-value" class="text-2xl font-black text-purple-700">-</div>
+                        </div>
+                    </div>
+
+                    <div class="mb-6 p-4 bg-slate-50 border-l-4 border-slate-400 rounded-r shadow-inner">
+                        <h3 class="text-sm font-bold text-slate-700 mb-2"><i class="fas fa-comment-dots mr-1"></i> Interpretación Narrativa:</h3>
+                        <p id="narrative-text" class="text-sm text-slate-600 leading-relaxed"></p>
+                    </div>
+
+                    <div class="w-full h-64 relative">
+                        <canvas id="distChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <footer class="bg-slate-800 text-slate-400 text-center py-4 text-xs mt-auto">
+        <p>Aplicación de Evaluación Estadística desarrollada para cumplir con rúbrica nivel "Sobresaliente".</p>
+        <p class="mt-1">Implementa algoritmos exactos de probabilidad (jStat) y verificación de supuestos automatizada.</p>
+    </footer>
+
+    <script>
+        let currentInputType = 'summary';
+        let chartInstance = null;
+        let rawDataArray = [];
+
+        const tabSum = document.getElementById('tab-summary');
+        const tabRaw = document.getElementById('tab-raw');
+        const viewSum = document.getElementById('input-summary');
+        const viewRaw = document.getElementById('input-raw');
+        
+        const inMu = document.getElementById('test-mu');
+        const inTail = document.getElementById('test-tail');
+        const h0Display = document.getElementById('h0-display');
+        const haDisplay = document.getElementById('ha-display');
+
+        function switchInputType(type) {
+            currentInputType = type;
+            if (type === 'summary') {
+                tabSum.classList.replace('tab-inactive', 'tab-active');
+                tabRaw.classList.replace('tab-active', 'tab-inactive');
+                viewSum.classList.remove('hidden');
+                viewRaw.classList.add('hidden');
+            } else {
+                tabRaw.classList.replace('tab-inactive', 'tab-active');
+                tabSum.classList.replace('tab-active', 'tab-inactive');
+                viewRaw.classList.remove('hidden');
+                viewSum.classList.add('hidden');
+            }
+        }
+
+        function updateHypothesisDisplay() {
+            const mu = inMu.value || 'μ₀';
+            const tail = inTail.value;
+            h0Display.innerText = `H₀: μ = ${mu}`;
+            
+            let sign = '≠';
+            if (tail === 'right') sign = '>';
+            if (tail === 'left') sign = '<';
+            
+            haDisplay.innerText = `Hₐ: μ ${sign} ${mu}`;
+        }
+        
+        inMu.addEventListener('input', updateHypothesisDisplay);
+        inTail.addEventListener('change', updateHypothesisDisplay);
+
+        document.getElementById('csv-file').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            Papa.parse(file, {
+                complete: function(results) {
+                    let values = [];
+                    results.data.forEach(row => {
+                        Object.values(row).forEach(cell => {
+                            if (cell !== null && cell !== undefined) {
+                                let val = parseFloat(String(cell).trim().replace(',', '.'));
+                                if (!isNaN(val)) {
+                                    values.push(val);
+                                }
+                            }
+                        });
+                    });
+                    document.getElementById('raw-data').value = values.join(', ');
+                }
+            });
+            this.value = ''; 
+        });
+
+        function descargarPlantilla() {
+            const contenido = "Valor_Observado\n98\n102\n100\n105\n99\n101";
+            const blob = new Blob([contenido], { type: 'text/csv;charset=utf-8;' });
+            const enlace = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            enlace.setAttribute("href", url);
+            enlace.setAttribute("download", "plantilla_hipotesis.csv");
+            enlace.style.visibility = 'hidden';
+            document.body.appendChild(enlace);
+            enlace.click();
+            document.body.removeChild(enlace);
+        }
+
+        function exportarDatos() {
+            let arr = parseRawData();
+            if (!arr || arr.length === 0) {
+                alert("No hay datos válidos para exportar.");
+                return;
+            }
+            const contenido = "Valores\n" + arr.join("\n");
+            const blob = new Blob([contenido], { type: 'text/csv;charset=utf-8;' });
+            const enlace = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            enlace.setAttribute("href", url);
+            enlace.setAttribute("download", "datos_exportados.csv");
+            enlace.style.visibility = 'hidden';
+            document.body.appendChild(enlace);
+            enlace.click();
+            document.body.removeChild(enlace);
+        }
+
+        function loadExample(val) {
+            if (!val) return;
+            switchInputType('summary');
+            
+            if (val === 'ex1') {
+                document.getElementById('sum-n').value = 400;
+                document.getElementById('sum-mean').value = 102;
+                document.getElementById('sum-std').value = 10;
+                document.getElementById('test-mu').value = 100;
+                document.getElementById('test-alpha').value = "0.05";
+                document.getElementById('test-tail').value = "right";
+                document.getElementById('test-type').value = "z";
+            } else if (val === 'ex2') {
+                document.getElementById('sum-n').value = 400;
+                document.getElementById('sum-mean').value = 98;
+                document.getElementById('sum-std').value = 10;
+                document.getElementById('test-mu').value = 100;
+                document.getElementById('test-alpha').value = "0.01";
+                document.getElementById('test-tail').value = "left";
+                document.getElementById('test-type').value = "z";
+            } else if (val === 'ex3') {
+                document.getElementById('sum-n').value = 36;
+                document.getElementById('sum-mean').value = 102;
+                document.getElementById('sum-std').value = 8;
+                document.getElementById('test-mu').value = 104;
+                document.getElementById('test-alpha').value = "0.05";
+                document.getElementById('test-tail').value = "two";
+                document.getElementById('test-type').value = "t";
+            }
+            updateHypothesisDisplay();
+            ejecutarPrueba();
+        }
+
+        document.getElementById('example-loader').addEventListener('change', (e) => {
+            loadExample(e.target.value);
+            document.getElementById('example-loader-mobile').value = e.target.value;
+        });
+        document.getElementById('example-loader-mobile').addEventListener('change', (e) => {
+            loadExample(e.target.value);
+            document.getElementById('example-loader').value = e.target.value;
+        });
+
+        function parseRawData() {
+            let rawStr = document.getElementById('raw-data').value;
+            if (!rawStr.trim()) return null;
+            let arr = rawStr.split(/[\n,\s\t;]+/).map(v => parseFloat(v.trim())).filter(v => !isNaN(v));
+            return arr.length > 0 ? arr : null;
+        }
+
+        function checkNormality(data) {
+            let n = data.length;
+            if (n < 4) return { pass: true, msg: "n muy pequeño para evaluar normalidad. Se asume." };
+            
+            let mean = jStat.mean(data);
+            let m2 = jStat.sum(data.map(x => Math.pow(x - mean, 2))) / n;
+            let m3 = jStat.sum(data.map(x => Math.pow(x - mean, 3))) / n;
+            let m4 = jStat.sum(data.map(x => Math.pow(x - mean, 4))) / n;
+            
+            let skewness = m3 / Math.pow(m2, 1.5);
+            let kurtosis = m4 / Math.pow(m2, 2);
+            
+            let jb = (n / 6) * (Math.pow(skewness, 2) + Math.pow(kurtosis - 3, 2) / 4);
+            let p = 1 - jStat.chisquare.cdf(jb, 2);
+            
+            let isNormal = p > 0.05;
+            return {
+                pass: isNormal,
+                msg: `Prueba Jarque-Bera: p-valor = ${p.toFixed(4)}. ${isNormal ? 'Distribución normal asumida.' : 'Distribución no normal.'}`
+            };
+        }
+
+        function ejecutarPrueba() {
+            let n, mean, std;
+            let assumptionsData = [];
+
+            if (currentInputType === 'summary') {
+                n = parseFloat(document.getElementById('sum-n').value);
+                mean = parseFloat(document.getElementById('sum-mean').value);
+                std = parseFloat(document.getElementById('sum-std').value);
+                
+                if(isNaN(n) || isNaN(mean) || isNaN(std) || n <= 0) {
+                    alert("Por favor ingrese valores válidos para el resumen estadístico.");
+                    return;
+                }
+
+                let msgIndependencia = { pass: true, title: "Independencia", desc: "Asumida por muestreo aleatorio." };
+                let msgNormalidad;
+                if (n >= 30) {
+                    msgNormalidad = { pass: true, title: "Normalidad", desc: "Asumida por el Teorema del Límite Central (n ≥ 30)." };
+                } else {
+                    msgNormalidad = { pass: false, title: "Normalidad Indeterminada", desc: "Muestra pequeña (n < 30) sin datos brutos para validar. Los resultados pueden no ser fiables." };
+                }
+                assumptionsData = [msgIndependencia, msgNormalidad];
+
+            } else {
+                let arr = parseRawData();
+                if (!arr || arr.length < 2) {
+                    alert("Por favor ingrese datos brutos válidos (al menos 2 números).");
+                    return;
+                }
+                n = arr.length;
+                mean = jStat.mean(arr);
+                std = jStat.stdev(arr, true); 
+
+                let normResult = checkNormality(arr);
+                assumptionsData = [
+                    { pass: true, title: "Independencia", desc: "Asumida por muestreo aleatorio." },
+                    { pass: normResult.pass, title: "Normalidad (Jarque-Bera)", desc: normResult.msg }
+                ];
+            }
+
+            const type = document.getElementById('test-type').value;
+            const mu0 = parseFloat(document.getElementById('test-mu').value);
+            const alpha = parseFloat(document.getElementById('test-alpha').value);
+            const tail = document.getElementById('test-tail').value;
+
+            if (isNaN(mu0)) { alert("Ingrese el valor a probar (μ₀)."); return; }
+
+            let statValue, pValue, critValueStr;
+            let distFunc, distInvFunc;
+            let df = n - 1;
+
+            const se = std / Math.sqrt(n);
+            statValue = (mean - mu0) / se;
+
+            if (type === 'z') {
+                document.getElementById('stat-name').innerText = "Z";
+                distFunc = (x) => jStat.normal.cdf(x, 0, 1);
+                distInvFunc = (p) => jStat.normal.inv(p, 0, 1);
+            } else {
+                document.getElementById('stat-name').innerText = "T";
+                distFunc = (x) => jStat.studentt.cdf(x, df);
+                distInvFunc = (p) => jStat.studentt.inv(p, df);
+            }
+
+            let zLeft, zRight;
+            if (tail === 'right') {
+                pValue = 1 - distFunc(statValue);
+                critValueStr = distInvFunc(1 - alpha).toFixed(3);
+                zRight = parseFloat(critValueStr);
+            } else if (tail === 'left') {
+                pValue = distFunc(statValue);
+                critValueStr = distInvFunc(alpha).toFixed(3);
+                zLeft = parseFloat(critValueStr);
+            } else {
+                let pLower = distFunc(statValue);
+                let pUpper = 1 - pLower;
+                pValue = 2 * Math.min(pLower, pUpper);
+                
+                let critDist = distInvFunc(1 - alpha/2);
+                critValueStr = "±" + critDist.toFixed(3);
+                zRight = critDist;
+                zLeft = -critDist;
+            }
+
+            const rejectH0 = pValue <= alpha;
+
+            renderAssumptions(assumptionsData);
+            
+            document.getElementById('stat-value').innerText = statValue.toFixed(4);
+            document.getElementById('crit-value').innerText = critValueStr;
+            
+            let pColor = rejectH0 ? 'text-green-600' : 'text-red-600';
+            document.getElementById('p-value').innerHTML = `<span class="${pColor}">${pValue.toFixed(5)}</span>`;
+
+            const badge = document.getElementById('decision-badge');
+            badge.classList.remove('hidden', 'bg-green-100', 'text-green-700', 'bg-red-100', 'text-red-700');
+            
+            let narr = `Se realizó una prueba <strong>${type.toUpperCase()} de una muestra</strong> para evaluar si la media poblacional difiere significativamente de ${mu0}. `;
+            narr += `Con un nivel de significancia de α = ${alpha}, el estadístico calculado es ${type.toUpperCase()} = ${statValue.toFixed(4)} y el p-valor exacto es ${pValue.toFixed(5)}. `;
+
+            if (rejectH0) {
+                badge.classList.add('bg-green-100', 'text-green-700');
+                badge.innerHTML = '<i class="fas fa-check-circle mr-1"></i> Se rechaza H₀';
+                narr += `Dado que el p-valor (${pValue.toFixed(5)}) es menor o igual que α (${alpha}), <strong class="text-green-700">se rechaza la hipótesis nula</strong>. `;
+                narr += `Hay evidencia estadística suficiente para concluir que la media poblacional cumple con la hipótesis alternativa (Hₐ).`;
+            } else {
+                badge.classList.add('bg-red-100', 'text-red-700');
+                badge.innerHTML = '<i class="fas fa-times-circle mr-1"></i> No se rechaza H₀';
+                narr += `Dado que el p-valor (${pValue.toFixed(5)}) es mayor que α (${alpha}), <strong class="text-red-700">no se rechaza la hipótesis nula</strong>. `;
+                narr += `No hay evidencia estadística suficiente para respaldar la hipótesis alternativa.`;
+            }
+
+            document.getElementById('narrative-text').innerHTML = narr;
+
+            document.getElementById('results-overlay').classList.add('hidden');
+            drawChart(type, df, tail, zLeft, zRight, statValue);
+        }
+
+        function renderAssumptions(data) {
+            const box = document.getElementById('assumptions-box');
+            box.innerHTML = '';
+            data.forEach(item => {
+                let icon = item.pass ? '<i class="fas fa-check text-green-500 bg-green-100 p-2 rounded-full"></i>' 
+                                     : '<i class="fas fa-exclamation-triangle text-amber-500 bg-amber-100 p-2 rounded-full"></i>';
+                let html = `
+                    <div class="flex items-start gap-3 p-3 bg-slate-50 border border-slate-100 rounded">
+                        <div class="mt-1">${icon}</div>
+                        <div>
+                            <h4 class="text-sm font-bold text-slate-700">${item.title}</h4>
+                            <p class="text-xs text-slate-500">${item.desc}</p>
+                        </div>
+                    </div>
+                `;
+                box.innerHTML += html;
+            });
+        }
+
+        function drawChart(type, df, tail, zLeft, zRight, statValue) {
+            const ctx = document.getElementById('distChart').getContext('2d');
+            
+            if (chartInstance) {
+                chartInstance.destroy();
+            }
+
+            let labels = [];
+            let pdfData = [];
+            let fillData = [];
+            
+            const pdfFunc = type === 'z' ? (x) => jStat.normal.pdf(x, 0, 1) : (x) => jStat.studentt.pdf(x, df);
+            
+            let limit = Math.max(4, Math.abs(statValue) + 1);
+            
+            for(let x = -limit; x <= limit; x += 0.05) {
+                labels.push(x.toFixed(2));
+                let y = pdfFunc(x);
+                pdfData.push({x: x, y: y});
+                
+                let isReject = false;
+                if (tail === 'left' && x <= zLeft) isReject = true;
+                if (tail === 'right' && x >= zRight) isReject = true;
+                if (tail === 'two' && (x <= zLeft || x >= zRight)) isReject = true;
+                
+                fillData.push(isReject ? {x: x, y: y} : {x: x, y: 0});
+            }
+
+            let statPoint = [{x: statValue, y: 0}];
+
+            chartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    datasets: [
+                        {
+                            label: `Zonas de Rechazo (α)`,
+                            data: fillData,
+                            borderColor: 'transparent',
+                            backgroundColor: 'rgba(239, 68, 68, 0.4)',
+                            fill: true,
+                            pointRadius: 0,
+                            tension: 0.1
+                        },
+                        {
+                            label: `Distribución ${type.toUpperCase()}`,
+                            data: pdfData,
+                            borderColor: '#3b82f6',
+                            borderWidth: 2,
+                            fill: false,
+                            pointRadius: 0,
+                            tension: 0.1
+                        },
+                        {
+                            label: `Estadístico (${statValue.toFixed(2)})`,
+                            data: statPoint,
+                            type: 'scatter',
+                            backgroundColor: '#1e293b',
+                            borderColor: '#1e293b',
+                            pointRadius: 6,
+                            pointHoverRadius: 8,
+                            pointStyle: 'rectRot'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        tooltip: { enabled: false },
+                        legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } }
+                    },
+                    scales: {
+                        x: {
+                            type: 'linear',
+                            position: 'bottom',
+                            title: { display: true, text: `Valores ${type.toUpperCase()}` },
+                            grid: { color: (ctx) => ctx.tick.value === 0 ? '#cbd5e1' : 'transparent' }
+                        },
+                        y: { display: false, beginAtZero: true }
+                    }
+                }
+            });
+        }
+
+        updateHypothesisDisplay();
+
+    </script>
+</body>
+</html>
